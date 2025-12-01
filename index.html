@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qui és Qui? — Mode Kahoot</title>
+<style>
+:root{
+  --bg:#f0f0f0;
+  --card:#fff;
+  --accent:#3cb371;
+  --opcio:#e3e3e3;
+  --opcio-hover:#ccc;
+}
+html,body{height:100%;margin:0;font-family: Arial, Helvetica, sans-serif;background:var(--bg);}
+.contenidor{
+  background:var(--card);
+  margin:16px auto;
+  width:95%;
+  max-width:720px;
+  border-radius:14px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.12);
+  padding:14px;
+  position:relative;
+  box-sizing:border-box;
+}
+#pantalla-pin, #pantalla-joc, #pantalla-fi { display:none; }
+#pantalla-joc { background:url('logo.png') no-repeat center center; background-size:cover; }
+#pantalla-fi { 
+  display:none; 
+  background: url('logo.png') no-repeat center center; 
+  background-size: cover; 
+  text-align:center;
+}
+#pantalla-fi .contenidor{ 
+  background: rgba(255,255,255,0.85); 
+  padding:20px; 
+}
+#titol-joc{margin:6px 0 4px 0;font-size:1.6rem;font-weight:700;color:black;text-align:center;}
+#marcador{position:absolute;top:12px;right:16px;background:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.08);font-weight:700;font-size:0.95rem;}
+#imatge{display:block;margin:10px auto;width:280px;height:280px;max-width:86vw;max-height:86vw;object-fit:cover;border-radius:10px;border:3px solid #444;background:#ddd;}
+#opcions{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(6,auto);gap:8px;margin-top:10px;}
+.opcio{
+  background:var(--opcio);
+  padding:10px;
+  border-radius:10px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  user-select:none;
+  font-size:0.95rem;
+  min-height:44px;
+  transition: transform .08s ease, background .12s ease;
+  box-shadow:0 2px 6px rgba(0,0,0,0.04);
+}
+.opcio:hover{ background:var(--opcio-hover); transform:translateY(-2px); }
+.opcio:active{ transform:translateY(0); }
+.nova-img{ background:var(--accent) !important; color:white; font-weight:700; }
+.opcio.inactiu{ background:#a8e6a1 !important; color:#fff !important; cursor:default !important; pointer-events:none !important; box-shadow:none !important; }
+
+#pantalla-pin input{ padding:10px; font-size:1rem; width:200px; border-radius:8px; border:1px solid #ccc; text-align:center;}
+#pantalla-pin button{ padding:10px 16px; font-size:1rem; border-radius:8px; margin-top:6px;}
+#seleccio-personatges{ margin-top:12px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+.seleccio-personatge{ display:flex; flex-direction:column; align-items:center; background:#f0f0f0; padding:6px; border-radius:8px; transition: transform 0.15s ease; position:relative;}
+.seleccio-personatge img{ width:80px; height:80px; object-fit:cover; border-radius:6px; margin-bottom:4px; border:2px solid #ccc;}
+.advertencia{ color:red; font-size:0.85rem; margin-top:2px; display:none;}
+@media (max-width:600px){
+  #opcions{ grid-template-columns:repeat(2, 1fr); grid-template-rows: repeat(9, auto); gap:8px; }
+  .opcio{ font-size:0.95rem; min-height:52px; padding:12px; }
+  #imatge{ width:74vw; height:74vw; }
+  #titol-joc{ font-size:1.3rem; }
+  .contenidor{ padding:12px; margin:8px; }
+  #marcador{ top:8px; right:10px; padding:6px 8px; font-size:0.9rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="pantalla-pin" class="contenidor">
+  <h1>Qui és Qui?</h1>
+  <h2 style="font-weight:600; margin-top:6px;">Entra el codi PIN</h2>
+  <input id="input-pin" type="number" placeholder="Codi PIN" inputmode="numeric">
+  <button onclick="validarPIN()">Entrar</button>
+  <p id="error-pin" style="color:#b00020; display:none; margin-top:10px;">PIN incorrecte</p>
+  <div id="seleccio-personatges"></div>
+</div>
+
+<div id="pantalla-joc" class="contenidor">
+  <h1 id="titol-joc">Qui és Qui?</h1>
+  <div id="marcador">Punts: <span id="punts">0</span></div>
+  <img id="imatge" src="" alt="imatge a endevinar">
+  <div id="opcions" aria-live="polite" role="list"></div>
+</div>
+
+<div id="pantalla-fi" class="contenidor">
+  <div class="contenidor">
+    <h1>Fi del joc!</h1>
+    <h2>Puntuació final: <span id="punts-finals">0</span></h2>
+    <button onclick="reiniciar()">Tornar a jugar</button>
+  </div>
+</div>
+
+<script>
+const PIN_CORRECTE = 1234;
+
+const personatgesInicials = [
+  { nom: "PATRI", img: "img/p1.jpg" },
+  { nom: "ANA PASTOR", img: "img/p2.jpg" },
+  { nom: "JAVIER", img: "img/p3.jpg" },
+  { nom: "SILVIA", img: "img/p4.jpg" },
+  { nom: "PACO", img: "img/p5.jpg" },
+  { nom: "JAUME", img: "img/p6.jpg" },
+  { nom: "BEA", img: "img/p7.jpg" },
+  { nom: "ANA ESTEVE", img: "img/p8.jpg" },
+  { nom: "DAMIAN", img: "img/p9.jpg" },
+  { nom: "SILVIA MIRA", img: "img/p10.jpg" },
+  { nom: "JORDI", img: "img/p11.jpg" },
+  { nom: "ANA MICO", img: "img/p12.jpg" },
+  { nom: "JOSE CARLOS", img: "img/p13.jpg" },
+  { nom: "GEO", img: "img/p14.jpg" },
+  { nom: "MARIA", img: "img/p15.jpg" },
+  { nom: "MADEL", img: "img/p16.jpg" },
+  { nom: "ROSA", img: "img/p17.jpg" }
+];
+
+let nomsUtilitzats = [];
+let personatges = [];
+let punts = 0;
+let actual = null;
+
+document.getElementById("pantalla-pin").style.display="block";
+
+function crearSeleccioPersonatges(){
+  const cont=document.getElementById("seleccio-personatges");
+  cont.innerHTML="";
+  personatgesInicials.forEach((p,i)=>{
+    const div=document.createElement("div");
+    div.className="seleccio-personatge";
+    const img=document.createElement("img");
+    img.src=p.img;
+    img.alt="Imagen "+(i+1);
+
+    const select=document.createElement("select");
+    select.style.width="90%";
+    const opcionDefault=document.createElement("option");
+    opcionDefault.value="";
+    opcionDefault.textContent="Selecciona nom";
+    select.appendChild(opcionDefault);
+
+    personatgesInicials.forEach(persona=>{
+      const opt=document.createElement("option");
+      opt.value=persona.nom;
+      opt.textContent=persona.nom;
+      select.appendChild(opt);
+    });
+
+    const adv=document.createElement("div");
+    adv.className="advertencia";
+    adv.textContent="Aquest nom ja està utilitzat";
+
+    select.onchange=()=>{
+      const nomSeleccionat=select.value;
+      if(!nomSeleccionat) return;
+      if(nomsUtilitzats.includes(nomSeleccionat)){
+        adv.style.display="block";
+        select.value="";
+      } else {
+        adv.style.display="none";
+        p.nom=nomSeleccionat;
+        nomsUtilitzats.push(nomSeleccionat);
+        img.style.opacity="0.7";
+        img.style.pointerEvents="none";
+        select.style.display="none"; // ocultem el selector
+      }
+    };
+
+    div.appendChild(img);
+    div.appendChild(select);
+    div.appendChild(adv);
+    cont.appendChild(div);
+  });
+}
+
+crearSeleccioPersonatges();
+
+function resetTitol(){ const t=document.getElementById("titol-joc"); t.style.color="black"; t.style.textShadow="none";}
+function animacioCorrecte(){ const t=document.getElementById("titol-joc"); t.style.color="green"; setTimeout(()=>resetTitol(),900);}
+function animacioError(){ const t=document.getElementById("titol-joc"); t.style.color="red"; setTimeout(()=>resetTitol(),900);}
+
+function crearBotons(){
+  const opcionsCont=document.getElementById("opcions");
+  opcionsCont.innerHTML="";
+  personatgesInicials.forEach(p=>{
+    const div=document.createElement("div");
+    div.className="opcio";
+    div.textContent=p.nom;
+    div.onclick=()=> resposta(p.nom);
+    div.setAttribute("role","button");
+    div.setAttribute("aria-label","Opció "+p.nom);
+    opcionsCont.appendChild(div);
+  });
+  const divBoton=document.createElement("div");
+  divBoton.className="opcio nova-img";
+  divBoton.textContent="Nova imatge";
+  divBoton.onclick=()=> novaRonda();
+  divBoton.setAttribute("role","button");
+  divBoton.setAttribute("aria-label","Nova imatge");
+  opcionsCont.appendChild(divBoton);
+}
+
+function novaRonda(){
+  resetTitol();
+  const participants=personatgesInicials.filter(p=>p.nom && !p.jugat);
+  if(participants.length===0){ fiDelJoc(); return; }
+  const idx=Math.floor(Math.random()*participants.length);
+  actual=participants[idx];
+  document.getElementById("imatge").src=actual.img;
+}
+
+function resposta(nomSeleccionat){
+  if(!actual) return;
+  const opcions=document.querySelectorAll("#opcions .opcio");
+  const boto=Array.from(opcions).find(b=>b.textContent===nomSeleccionat);
+  if(nomSeleccionat===actual.nom){
+    punts+=10; animacioCorrecte();
+    if(boto) boto.classList.add("inactiu");
+    personatgesInicials.find(p=>p.nom===actual.nom).jugat=true;
+  }else{
+    punts-=5; if(punts<0)punts=0;
+    animacioError();
+  }
+  document.getElementById("punts").textContent=punts;
+  setTimeout(()=>{ const restants=personatgesInicials.filter(p=>p.nom && !p.jugat); if(restants.length===0) fiDelJoc(); else novaRonda(); },600);
+}
+
+function fiDelJoc(){
+  document.getElementById("pantalla-joc").style.display="none";
+  document.getElementById("pantalla-fi").style.display="block";
+  document.getElementById("punts-finals").textContent=punts;
+}
+
+function reiniciar(){
+  document.getElementById("pantalla-fi").style.display="none";
+  document.getElementById("pantalla-pin").style.display="block";
+  document.getElementById("input-pin").value="";
+  nomsUtilitzats=[];
+  personatgesInicials.forEach(p=>{p.nom=null; p.jugat=false;});
+  punts=0;
+  document.getElementById("punts").textContent=punts;
+  crearSeleccioPersonatges();
+  resetTitol();
+}
+
+function validarPIN(){
+  const pin=document.getElementById("input-pin").value;
+  if(pin==PIN_CORRECTE){
+    document.getElementById("pantalla-pin").style.display="none";
+    document.getElementById("pantalla-joc").style.display="block";
+    crearBotons();
+    novaRonda();
+  }else{
+    document.getElementById("error-pin").style.display="block";
+    setTimeout(()=>document.getElementById("error-pin").style.display="none",1800);
+  }
+}
+
+document.getElementById("input-pin").addEventListener("keydown",function(e){ if(e.key==="Enter") validarPIN(); });
+</script>
+</body>
+</html>
